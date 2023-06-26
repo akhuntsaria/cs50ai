@@ -3,12 +3,11 @@ Tic Tac Toe Player
 """
 
 import copy
-import math
 
 X = "X"
 O = "O"
 EMPTY = None
-
+minimax_cache = {}
 
 def initial_state():
     """
@@ -106,32 +105,39 @@ def minimax(board):
     if terminal(board):
         return None
     
+    board_tuple = tuple(map(tuple, board))
+    if board_tuple in minimax_cache:
+        return minimax_cache[board_tuple]
+
     plr = player(board)
     res_act = None
     res_utl = None
-    for action in actions(board):
-        if res_act == None:
-            res_act = action
-            res_utl = final_utility(result(board, action))
-            continue
-        
+    acts = actions(board)
+
+    # Return an immediate-win action early
+    for action in acts:
+        if winner(result(board, action)) == plr:
+            return action
+
+    for action in acts:
         if plr == X:
-            if res_utl == 1:
-                break
-
             utl = final_utility(result(board, action))
-            if utl > res_utl:
+            if res_utl == None or utl > res_utl:
                 res_act = action
                 res_utl = utl
+
+            if utl == 1:
+                break
         else:
-            if res_utl == -1:
-                break
-
             utl = final_utility(result(board, action))
-            if utl < res_utl:
+            if res_utl == None or utl < res_utl:
                 res_act = action
                 res_utl = utl
 
+            if utl == -1:
+                break
+
+    minimax_cache[board_tuple] = res_act
     return res_act
 
 def final_utility(board):
