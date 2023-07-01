@@ -111,11 +111,8 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        if len(self.cells) and self.count == 0:
-            return set(self.cells)
-        else:
-            return set()
-
+        return set(self.cells) if self.count == 0 else set()
+        
     def mark_mine(self, cell):
         """
         Updates internal knowledge representation given the fact that
@@ -123,8 +120,7 @@ class Sentence():
         """
         if cell in self.cells:
             self.cells.remove(cell)
-            if self.count > 0:
-                self.count -= 1
+            self.count -= 1    
 
     def mark_safe(self, cell):
         """
@@ -192,64 +188,54 @@ class MinesweeperAI():
         self.moves_made.add(cell)
         self.mark_safe(cell)
 
-        neibs = set()
-        for move in  [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)]:
+        cells = []
+        for neib in self.nearby_cells(cell):
+            if neib in self.mines:
+                count -= 1
+            if neib not in self.safes | self.mines:
+                cells.append(neib)
+
+        if cells:
+            self.knowledge.append(Sentence(cells, count))
+
+        self.cleanup_knowledge()
+
+        # Infer new knowledge using the subset method
+        for s1 in self.knowledge:
+            for s2 in self.knowledge:
+                if s1.cells < s2.cells:
+                    ns = Sentence(s2.cells - s1.cells, s2.count - s1.count)
+                    for mine in ns.known_mines():
+                        self.mark_mine(mine)
+                    for safe in ns.known_safes():
+                        self.mark_safe(safe)
+
+    def nearby_cells(self, cell):
+        neibs = []
+        for move in [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)]:
             neib = (cell[0] + move[0], cell[1] + move[1])
             if min(neib[0], neib[1]) < 0 or neib[0] >= self.height or neib[1] >= self.width:
                 continue
-            if neib in self.mines:
-                count -= 1
-                continue
-            if neib in self.safes:
-                continue
-            neibs.add(neib)
+            neibs.append(neib)
+        return neibs
 
-        if neibs:
-            if not count: # all safe
-                for neib in neibs:
-                    self.mark_safe(neib)
-            elif len(neibs) == count: # all mines
-                for neib in neibs:
-                    self.mark_mine(neib)
-            else:
-                ns = Sentence(neibs, count)
-                if ns not in self.knowledge:
-                    self.knowledge.append(ns)
-
-        self.knowledge = list(filter(lambda s: len(s.cells), self.knowledge))
-
+    def cleanup_knowledge(self):
         while True:
-            new = []
-            dup = []
-            for s1 in self.knowledge:
-                for s2 in self.knowledge:
-                    if s1 is not s2 and s1.cells.issubset(s2.cells):
-                        ns = Sentence(s2.cells.difference(s1.cells), s2.count - s1.count)
-                        if ns in self.knowledge:
-                            continue
-                        if not ns.cells:
-                            dup.append(s1)
-                            continue
-                        new.append(ns)
+            changes = False
 
-            for s in dup:
-                if s in self.knowledge:
-                    self.knowledge.remove(s)
+            for sen in self.knowledge:
+                for mine in sen.known_mines():
+                    self.mark_mine(mine)
+                    changes = True
+                for safe in sen.known_safes():
+                    self.mark_safe(safe)
+                    changes = True
 
-            for s in new:
-                if not s.count:
-                    for cell in s.cells:
-                        self.mark_safe(cell)
-                elif s.count == len(s.cells):
-                    for cell in s.cells:
-                        self.mark_mine(cell)
-                else:
-                    self.knowledge.append(s)
-            
-            if not new and not dup:
+            # Delete empty sentences
+            self.knowledge = list(filter(lambda s: len(s.cells), self.knowledge))
+
+            if not changes:
                 break
-            else:
-                self.knowledge = list(filter(lambda s: len(s.cells), self.knowledge))
 
     def make_safe_move(self):
         """
@@ -260,9 +246,8 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        for safe in self.safes:
-            if safe not in self.moves_made:
-                return safe  
+        for cell in self.safes - self.moves_made:
+            return cell
         return None
 
     def make_random_move(self):
@@ -276,7 +261,7 @@ class MinesweeperAI():
         for i in range(self.height):
             for j in range(self.width):
                 cell = (i, j)
-                if cell not in self.moves_made and cell not in self.mines:
+                if cell not in self.moves_made | self.mines:
                     available.append(cell)
 
         if not available:
