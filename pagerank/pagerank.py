@@ -1,3 +1,4 @@
+from functools import reduce
 import os
 import random
 import re
@@ -57,15 +58,15 @@ def transition_model(corpus, page, damping_factor):
     linked to by `page`. With probability `1 - damping_factor`, choose
     a link at random chosen from all pages in the corpus.
     """
-    res = {}
+    prob_dist = {}
     for p in corpus:
         if not corpus[page]: # no outgoing links
-            res[p] = 1 / len(corpus)
+            prob_dist[p] = 1 / len(corpus)
         elif p in corpus[page]: # outgoing link
-            res[p] = (damping_factor / len(corpus[page])) + ((1 - damping_factor) / len(corpus))
+            prob_dist[p] = (damping_factor / len(corpus[page])) + ((1 - damping_factor) / len(corpus))
         else: # random link
-            res[p] = ((1 - damping_factor) / len(corpus))
-    return res
+            prob_dist[p] = ((1 - damping_factor) / len(corpus))
+    return prob_dist
 
 
 def sample_pagerank(corpus, damping_factor, n):
@@ -78,21 +79,17 @@ def sample_pagerank(corpus, damping_factor, n):
     PageRank values should sum to 1.
     """
     counts = {}
-    page = None
+    sample = None
     tm = None
-    for i in range(n):
-        if not page:
-            page = random.choice(list(corpus.keys()))
-            tm = transition_model(corpus, page, damping_factor)
+    for sample_i in range(n):
+        if not sample:
+            sample = random.choice(list(corpus.keys()))
         else:
-            page = random.choices(population=list(tm.keys()),weights=list(tm.values()),k=1)[0]
-            tm = transition_model(corpus, page, damping_factor)
-        counts[page] = counts.get(page, 0) + 1
-    #TODO counts to res
-    res = {}
-    for page in counts.keys():
-        res[page] = counts[page] / n
-    return res
+            tm = transition_model(corpus, sample, damping_factor)
+            sample = random.choices(population=list(tm.keys()),weights=list(tm.values()),k=1)[0]
+        counts[sample] = counts.get(sample, 0) + 1
+
+    return {page: (counts[page] / n) for page in counts.keys()}
 
 
 def iterate_pagerank(corpus, damping_factor):
@@ -104,38 +101,24 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    pr = {}
-    for page in corpus.keys():
-        pr[page] = 1 / len(corpus)
-    
+    ranks = {page: (1 / len(corpus)) for page in corpus.keys()}
+    random_factor = (1 - damping_factor) / len(corpus)
+
     while True:
-        new_pr = dict(pr)
-        for page in pr.keys():
-            sum = 0
-            for i in links_to(corpus, page):
-                sum += pr[i] / num_links(corpus, i)
-            new_pr[page] = (1 - damping_factor) / len(corpus) + damping_factor * sum
-        if converged(pr, new_pr):
-            return new_pr
-        pr = new_pr
+        new_ranks = dict(ranks)
 
-def converged(a, b):
-    for key in a.keys():
-        if abs(a[key]-b[key]) > 0.001:
-            return False
-    return True
+        for page in ranks.keys():
+            new_ranks[page] = random_factor
+            parents = [parent for parent in corpus.keys() if page in corpus[parent]]
+            for parent in parents:
+                num_links = len(corpus[parent]) if corpus[parent] else len(corpus)
+                new_ranks[page] += damping_factor * (ranks[parent] / num_links)
 
-def links_to(corpus, page):
-    res = []
-    for p in corpus.keys():
-        if page in corpus[p]:
-            res.append(p)
-    return res
-
-def num_links(corpus, page):
-    if not corpus[page]:
-        return len(corpus)
-    return len(corpus[page])
+        # Check if it converged
+        if max(abs(ranks[key]-new_ranks[key]) for key in ranks.keys()) <= 0.001:
+            return new_ranks
+        
+        ranks = new_ranks
 
 if __name__ == "__main__":
     main()
