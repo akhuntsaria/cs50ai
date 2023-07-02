@@ -157,28 +157,19 @@ def joint_probability(people, one_gene, two_genes, have_trait):
             for parent in ['mother', 'father']:
                 par_genes = gene_count(person[parent], one_gene, two_genes)
                 if not par_genes:
-                    par_prob[parent] = {
-                        True: PROBS['mutation'],
-                        False: 1 - PROBS['mutation']
-                    }
+                    par_prob[parent] = PROBS['mutation']
                 elif par_genes == 1:
-                    par_prob[parent] = {
-                        True: 0.5,
-                        False: 0.5
-                    }
+                    par_prob[parent] = 0.5
                 else: # Parent has 2 copies
-                    par_prob[parent] = {
-                        True: 1 - PROBS['mutation'],
-                        False: PROBS['mutation']
-                    }
+                    par_prob[parent] = 1 - PROBS['mutation']
 
             if not genes: # Get the gene from none of the parents
-                gene_prob = par_prob['mother'][False] * par_prob['father'][False]
+                gene_prob = (1 - par_prob['mother']) * (1 - par_prob['father'])
             elif genes == 1: # From one of them
-                gene_prob = par_prob['mother'][True] * par_prob['father'][False] + \
-                    par_prob['mother'][False] * par_prob['father'][True]
+                gene_prob = par_prob['mother'] * (1 - par_prob['father']) + \
+                    (1 - par_prob['mother']) * par_prob['father']
             else: # From both of them
-                gene_prob = par_prob['mother'][True] * par_prob['father'][True]
+                gene_prob = par_prob['mother'] * par_prob['father']
         
         joint_prob *= gene_prob * trait_prob
     return joint_prob
@@ -207,9 +198,7 @@ def normalize(probabilities):
     """
     for probs in probabilities.values():
         for type in ['gene', 'trait']:
-            prob_sum = 0
-            for prob in probs[type].values():
-                prob_sum += prob
+            prob_sum = sum(probs[type].values())
             for key in probs[type].keys():
                 probs[type][key] /= prob_sum
 
