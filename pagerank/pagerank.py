@@ -104,7 +104,6 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    #TODO fix for corpus2
     pr = {}
     for page in corpus.keys():
         pr[page] = 1 / len(corpus)
@@ -131,8 +130,6 @@ def links_to(corpus, page):
     for p in corpus.keys():
         if page in corpus[p]:
             res.append(p)
-    if not res:
-        res = corpus.keys()
     return res
 
 def num_links(corpus, page):
