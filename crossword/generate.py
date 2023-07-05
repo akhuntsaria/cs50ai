@@ -143,7 +143,15 @@ class CrosswordCreator():
         Return True if arc consistency is enforced and no domains are empty;
         return False if one or more domains end up empty.
         """
-        queue = deque(arcs if arcs else self.crossword.overlaps.keys())
+        if not arcs:
+            queue = deque()
+            for var in self.domains.keys():
+                for next_var in self.crossword.neighbors(var):
+                    if (var, next_var) in self.crossword.overlaps and self.crossword.overlaps[var, next_var]:
+                        queue.append((var, next_var))
+        else:
+            queue = deque(arcs)
+
         while queue:
             x, y = queue.popleft()
             if self.revise(x, y):
@@ -174,12 +182,12 @@ class CrosswordCreator():
         if not all(len(word) == var.length for var, word in assignment.items()):
             return False
         # Conflicting characters
-        for (x, y), char_ids in self.crossword.overlaps.items():
-            if not char_ids or x not in assignment or y not in assignment:
-                continue
-            i, j = char_ids
-            if assignment[x][i] != assignment[y][j]:
-                return False
+        for var in assignment:
+            for next_var in self.crossword.neighbors(var):
+                if next_var in assignment:
+                    i, j = self.crossword.overlaps[var, next_var]
+                    if assignment[var][i] != assignment[next_var][j]:
+                        return False
         return True
 
     def order_domain_values(self, var, assignment):
@@ -240,7 +248,7 @@ class CrosswordCreator():
             assignment[var] = word
 
             if self.consistent(assignment):
-                #TODO inference
+                #TODO additional inference
                 res_assignment = self.backtrack(assignment)
                 if res_assignment:
                     return res_assignment
