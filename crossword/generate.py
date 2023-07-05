@@ -175,11 +175,9 @@ class CrosswordCreator():
             return False
         # Conflicting characters
         for (x, y), char_ids in self.crossword.overlaps.items():
-            if not char_ids:
+            if not char_ids or x not in assignment or y not in assignment:
                 continue
             i, j = char_ids
-            if x not in assignment or y not in assignment:
-                continue
             if assignment[x][i] != assignment[y][j]:
                 return False
         return True
@@ -191,8 +189,23 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        #TODO heuristic
-        return self.domains[var]
+        def rule_out_count(word):
+            count = 0
+            for next_var in self.crossword.neighbors(var):
+                if next_var not in assignment:
+                    continue
+                overlap_key = (var, next_var)
+                if overlap_key not in self.crossword.overlaps or \
+                    not self.crossword.overlaps[overlap_key]:
+                    continue
+                i, j = self.crossword.overlaps[overlap_key]
+                if word[i] != assignment[next_var][j]:
+                    count += 1
+            return count
+
+        words = list(self.domains[var])
+        words.sort(key=rule_out_count)
+        return words
 
     def select_unassigned_variable(self, assignment):
         """
@@ -202,8 +215,13 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
-        #TODO heuristic
-        return next(var for var in self.domains.keys() if var not in assignment)
+        def sort_key(var):
+            # Minus = descending order
+            return (len(self.domains[var]), -len(self.crossword.neighbors(var)))
+
+        vars = [var for var in self.domains.keys() if var not in assignment]
+        vars.sort(key=sort_key)
+        return vars[0]
 
     def backtrack(self, assignment):
         """
