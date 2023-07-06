@@ -3,6 +3,7 @@ import sys
 
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix
 
 TEST_SIZE = 0.4
 
@@ -112,20 +113,8 @@ def evaluate(labels, predictions):
     representing the "true negative rate": the proportion of
     actual negative labels that were accurately identified.
     """
-    pos_pred = 0
-    pos_total = 0
-    neg_pred = 0
-    neg_total = 0
-    for i in range(len(labels)):
-        if labels[i] == 0:
-            neg_total += 1
-            if predictions[i] == 0:
-                neg_pred += 1
-        else:
-            pos_total += 1
-            if predictions[i] == 1:
-                pos_pred += 1
-    return (pos_pred/pos_total, neg_pred/neg_total)
+    true_neg, false_neg, true_pos, false_pos = confusion_matrix(labels, predictions).ravel()
+    return (true_pos / (true_pos + false_pos), true_neg / (true_neg + false_neg))
 
 
 if __name__ == "__main__":
