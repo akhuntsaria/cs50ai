@@ -1,0 +1,6 @@
+# Data set
+gtsrb-2
+
+# Trained models
+*.h5
+*.keras
