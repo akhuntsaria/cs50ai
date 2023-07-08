@@ -73,7 +73,7 @@ def load_data(data_dir):
             image = np.asarray(image)
 
             images.append(image)
-            labels.append(label)
+            labels.append(int(label))
             
     return (images, labels)
 
