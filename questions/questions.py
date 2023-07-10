@@ -57,7 +57,7 @@ def load_files(directory):
             continue
         path = os.path.join(directory, filename)
         with open(path) as file:
-            map[filename] = file.read()
+            map[path] = file.read()
     return map
 
 
@@ -98,15 +98,16 @@ def top_files(query, files, idfs, n):
     to their IDF values), return a list of the filenames of the the `n` top
     files that match the query, ranked according to tf-idf.
     """
-    def tf_idf(filename):
-        sum = 0
+    scores = {}
+    for filename in files.keys():
+        score = 0
         for word in query:
             if not idfs[word]:
                 continue
             tf = files[filename].count(word)
-            sum += tf / idfs[word]
-        return sum
-    return sorted(files.keys(), key=tf_idf, reverse=True)[:n]
+            score += tf / idfs[word]
+        scores[filename] = score
+    return sorted(files.keys(), key=lambda filename: scores[filename], reverse=True)[:n]
 
 
 def top_sentences(query, sentences, idfs, n):
@@ -117,9 +118,12 @@ def top_sentences(query, sentences, idfs, n):
     the query, ranked according to idf. If there are ties, preference should
     be given to sentences that have a higher query term density.
     """
-    def idf(sentence):
-        return sum(idfs[word] for word in query if word in sentences[sentence])
-    return sorted(sentences.keys(), key=idf, reverse=True)[:n]
+    scores = {}
+    for sentence, words in sentences.items():
+        idf = sum(idfs[word] for word in query if word in sentences[sentence])
+        density = (sum(words.count(word) for word in query) / len(words)) if idf else 0
+        scores[sentence] = (idf, density)
+    return sorted(sentences.keys(), key=lambda sentence: scores[sentence], reverse=True)[:n]
 
 
 if __name__ == "__main__":
